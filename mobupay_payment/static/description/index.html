@@ -42,6 +42,53 @@
     </div>
   </div>
 
+
+  <div class="oe_row oe_spaced">
+    <h3>Installation</h3>
+    <p>
+      <strong>Sur Odoo.sh</strong> : cliquez sur « Deploy on Odoo.sh » ci-dessus. Odoo
+      ajoute le module au dépôt de votre projet et reconstruit. Installez-le ensuite
+      depuis vos applications.
+    </p>
+    <p>
+      <strong>Si vous hébergez votre Odoo vous-même</strong> : téléchargez le module,
+      placez le dossier <code>mobupay_payment/</code> dans votre répertoire
+      <code>addons</code>, redémarrez Odoo, puis
+      <strong>activez le mode développeur</strong> (Paramètres, Outils du développeur).
+      Applications, menu à trois points, « Mettre à jour la liste des applications »,
+      cherchez « Mobupay » et installez.
+      <em>Sans le mode développeur, ce menu n'existe pas</em> : c'est la raison la plus
+      fréquente d'une installation qui semble échouer.
+    </p>
+    <p>
+      <strong>Sur Odoo Online</strong> : Odoo Online n'accepte aucun module tiers
+      contenant du code Python, quel qu'il soit et d'où qu'il vienne. Ce module ne peut
+      donc pas y être installé, et la mention « Odoo Online » de l'encadré de
+      disponibilité ci-contre ne s'applique pas à lui. Vous pouvez encaisser par
+      <strong>lien de paiement Mobupay</strong>, qui fonctionne depuis n'importe quel
+      site, ou migrer votre instance vers Odoo.sh. Écrivez-nous, nous vous orientons.
+    </p>
+  </div>
+
+  <div class="oe_row oe_spaced">
+    <h3>Configuration</h3>
+    <p>
+      Comptabilité (ou Site web), Configuration, Fournisseurs de paiement, Mobupay.
+      <strong>Un seul champ : votre clé API.</strong> Enregistrez, et le module vérifie
+      la clé, récupère le secret de signature et vous confirme l'environnement.
+    </p>
+    <p>
+      Le module s'installe <strong>désactivé</strong> : un moyen de paiement ne doit
+      jamais arriver prêt à encaisser. Passez en « Mode test », encaissez un paiement
+      d'essai, puis « Activé ».
+    </p>
+    <p>
+      Votre instance doit être <strong>joignable depuis internet, en HTTPS</strong> :
+      Mobupay y livre ses confirmations de paiement. Le bouton « Vérifier la connexion »
+      vous prévient si votre adresse publique ne convient pas.
+    </p>
+  </div>
+
   <div class="oe_row oe_spaced">
     <h3>Données transmises à Mobupay</h3>
     <p>
