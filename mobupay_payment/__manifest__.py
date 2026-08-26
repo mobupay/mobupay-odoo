@@ -7,7 +7,7 @@
     # d'une AUTRE serie. Un manifeste en « 17.0.1.0.0 » s'installe donc sur la 17 et
     # echoue sur la 18 avec « invalid manifest », sans autre explication.
     # Constate en installant reellement le module sur les deux, le 2026-08-25.
-    "version": "1.0.2",
+    "version": "1.0.3",
     "summary": "Paiement par carte via Mobupay (Nouvelle-Calédonie et Pacifique)",
     # Rendue en reStructuredText par Odoo : listes a puces avec ligne vide avant et
     # apres, et AUCUNE ligne indentee sous un paragraphe, sinon le rendu casse et la

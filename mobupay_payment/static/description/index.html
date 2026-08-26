@@ -1,59 +1,79 @@
+<!--
+  ATTENTION AVANT DE "CORRIGER" CE FICHIER.
+
+  Les caracteres accentues y sont ecrits en ENTITES HTML NUMERIQUES (&#233; et non le
+  caractere lui-meme), ce qui deroge a la regle du depot voulant qu'on ecrive l'UTF-8
+  directement. C'est delibere, et voici pourquoi.
+
+  Ce fichier est rendu par la place de marche Odoo Apps, qui le lit en LATIN-1 alors
+  qu'il est en UTF-8. Constate en ligne le 2026-08-26 sur notre propre fiche : 105
+  sequences cassees, "Un seul champ A  renseigner", "clA(c) API". Le fichier etait
+  pourtant de l'UTF-8 parfaitement valide, et ajouter une declaration de charset n'y
+  change rien : le mauvais decodage a lieu avant tout rendu.
+
+  Les entites numeriques sont de l'ASCII pur. Elles traversent donc n'importe quel
+  decodage, correct ou non. C'est la seule forme dont on soit sur.
+
+  Pour modifier ce fichier : ecrire normalement, puis reconvertir tout caractere
+  non-ASCII en entite avant publication. Le corps de ce fichier ne doit contenir
+  AUCUN octet superieur a 127.
+-->
 <section class="oe_container">
   <div class="oe_row oe_spaced">
     <h2 class="oe_slogan">Encaissez par carte avec Mobupay</h2>
-    <h3 class="oe_slogan">Nouvelle-Calédonie et Pacifique, reversement en XPF sur un compte local</h3>
+    <h3 class="oe_slogan">Nouvelle-Cal&#233;donie et Pacifique, reversement en XPF sur un compte local</h3>
   </div>
 
   <div class="oe_row oe_spaced">
     <div class="oe_span6">
-      <h3>Un seul champ à renseigner</h3>
+      <h3>Un seul champ &#224; renseigner</h3>
       <p>
-        Vous collez votre clé API, vous enregistrez, c'est tout. Le secret de signature
-        des webhooks est récupéré automatiquement, et l'enregistrement vérifie votre clé
-        et vous dit dans quel environnement vous êtes, test ou production.
+        Vous collez votre cl&#233; API, vous enregistrez, c'est tout. Le secret de signature
+        des webhooks est r&#233;cup&#233;r&#233; automatiquement, et l'enregistrement v&#233;rifie votre cl&#233;
+        et vous dit dans quel environnement vous &#234;tes, test ou production.
       </p>
     </div>
     <div class="oe_span6">
-      <h3>Vos données de carte ne transitent jamais par votre serveur</h3>
+      <h3>Vos donn&#233;es de carte ne transitent jamais par votre serveur</h3>
       <p>
-        L'acheteur paie sur une page hébergée sécurisée. Votre commande est mise à jour
-        par un webhook signé, seule source de vérité sur l'issue d'un paiement.
+        L'acheteur paie sur une page h&#233;berg&#233;e s&#233;curis&#233;e. Votre commande est mise &#224; jour
+        par un webhook sign&#233;, seule source de v&#233;rit&#233; sur l'issue d'un paiement.
       </p>
     </div>
   </div>
 
   <div class="oe_row oe_spaced">
     <div class="oe_span6">
-      <h3>Le détail de votre commande est transmis</h3>
+      <h3>Le d&#233;tail de votre commande est transmis</h3>
       <p>
-        Articles, taxes par ligne avec leur libellé réel, frais de port, remises, et
-        coordonnées du client. Tout est déduit de la commande : vous n'avez aucun champ
-        à remplir. Vos factures Mobupay détaillent donc chaque ligne et portent les
+        Articles, taxes par ligne avec leur libell&#233; r&#233;el, frais de port, remises, et
+        coordonn&#233;es du client. Tout est d&#233;duit de la commande : vous n'avez aucun champ
+        &#224; remplir. Vos factures Mobupay d&#233;taillent donc chaque ligne et portent les
         mentions obligatoires.
       </p>
     </div>
     <div class="oe_span6">
-      <h3>Un paiement n'est jamais refusé pour un motif de facturation</h3>
+      <h3>Un paiement n'est jamais refus&#233; pour un motif de facturation</h3>
       <p>
-        S'il manque une mention obligatoire, le paiement aboutit quand même. La facture
-        est créée en brouillon avec tout le détail de la commande, et elle indique ce
-        qu'il reste à compléter.
+        S'il manque une mention obligatoire, le paiement aboutit quand m&#234;me. La facture
+        est cr&#233;&#233;e en brouillon avec tout le d&#233;tail de la commande, et elle indique ce
+        qu'il reste &#224; compl&#233;ter.
       </p>
     </div>
   </div>
 
 
   <div class="oe_row oe_spaced">
-    <h3>À quoi ça ressemble</h3>
+    <h3>&#192; quoi &#231;a ressemble</h3>
     <div class="oe_span12" style="text-align:center">
       <img src="ecran-configuration.png" alt="Configuration du fournisseur Mobupay dans Odoo"
            style="max-width:100%; border:1px solid #ddd; border-radius:4px"/>
       <p style="color:#777; font-size:13px; margin-top:6px">
-        Un seul champ à renseigner : votre clé API. Le reste est récupéré automatiquement.
+        Un seul champ &#224; renseigner : votre cl&#233; API. Le reste est r&#233;cup&#233;r&#233; automatiquement.
       </p>
     </div>
     <div class="oe_span12" style="text-align:center; margin-top:24px">
-      <img src="ecran-paiement.png" alt="Mobupay proposé au paiement dans la boutique Odoo"
+      <img src="ecran-paiement.png" alt="Mobupay propos&#233; au paiement dans la boutique Odoo"
            style="max-width:100%; border:1px solid #ddd; border-radius:4px"/>
       <p style="color:#777; font-size:13px; margin-top:6px">
         Ce que voit votre client au moment de payer.
@@ -64,83 +84,83 @@
   <div class="oe_row oe_spaced">
     <h3>Installation</h3>
     <p>
-      <strong>Sur Odoo.sh</strong> : cliquez sur « Deploy on Odoo.sh » ci-dessus. Odoo
-      ajoute le module au dépôt de votre projet et reconstruit. Installez-le ensuite
+      <strong>Sur Odoo.sh</strong> : cliquez sur &#171; Deploy on Odoo.sh &#187; ci-dessus. Odoo
+      ajoute le module au d&#233;p&#244;t de votre projet et reconstruit. Installez-le ensuite
       depuis vos applications.
     </p>
     <p>
-      <strong>Si vous hébergez votre Odoo vous-même</strong> : téléchargez le module,
-      placez le dossier <code>mobupay_payment/</code> dans votre répertoire
-      <code>addons</code>, redémarrez Odoo, puis
-      <strong>activez le mode développeur</strong> (Paramètres, Outils du développeur).
-      Applications, menu à trois points, « Mettre à jour la liste des applications »,
-      cherchez « Mobupay » et installez.
-      <em>Sans le mode développeur, ce menu n'existe pas</em> : c'est la raison la plus
-      fréquente d'une installation qui semble échouer.
+      <strong>Si vous h&#233;bergez votre Odoo vous-m&#234;me</strong> : t&#233;l&#233;chargez le module,
+      placez le dossier <code>mobupay_payment/</code> dans votre r&#233;pertoire
+      <code>addons</code>, red&#233;marrez Odoo, puis
+      <strong>activez le mode d&#233;veloppeur</strong> (Param&#232;tres, Outils du d&#233;veloppeur).
+      Applications, menu &#224; trois points, &#171; Mettre &#224; jour la liste des applications &#187;,
+      cherchez &#171; Mobupay &#187; et installez.
+      <em>Sans le mode d&#233;veloppeur, ce menu n'existe pas</em> : c'est la raison la plus
+      fr&#233;quente d'une installation qui semble &#233;chouer.
     </p>
     <p>
       <strong>Sur Odoo Online</strong> : Odoo Online n'accepte aucun module tiers
-      contenant du code Python, quel qu'il soit et d'où qu'il vienne. Ce module ne peut
-      donc pas y être installé, et la mention « Odoo Online » de l'encadré de
-      disponibilité ci-contre ne s'applique pas à lui. Vous pouvez encaisser par
+      contenant du code Python, quel qu'il soit et d'o&#249; qu'il vienne. Ce module ne peut
+      donc pas y &#234;tre install&#233;, et la mention &#171; Odoo Online &#187; de l'encadr&#233; de
+      disponibilit&#233; ci-contre ne s'applique pas &#224; lui. Vous pouvez encaisser par
       <strong>lien de paiement Mobupay</strong>, qui fonctionne depuis n'importe quel
-      site, ou migrer votre instance vers Odoo.sh. Écrivez-nous, nous vous orientons.
+      site, ou migrer votre instance vers Odoo.sh. &#201;crivez-nous, nous vous orientons.
     </p>
   </div>
 
   <div class="oe_row oe_spaced">
     <h3>Configuration</h3>
     <p>
-      Comptabilité (ou Site web), Configuration, Fournisseurs de paiement, Mobupay.
-      <strong>Un seul champ : votre clé API.</strong> Enregistrez, et le module vérifie
-      la clé, récupère le secret de signature et vous confirme l'environnement.
+      Comptabilit&#233; (ou Site web), Configuration, Fournisseurs de paiement, Mobupay.
+      <strong>Un seul champ : votre cl&#233; API.</strong> Enregistrez, et le module v&#233;rifie
+      la cl&#233;, r&#233;cup&#232;re le secret de signature et vous confirme l'environnement.
     </p>
     <p>
-      Le module s'installe <strong>désactivé</strong> : un moyen de paiement ne doit
-      jamais arriver prêt à encaisser. Passez en « Mode test », encaissez un paiement
-      d'essai, puis « Activé ».
+      Le module s'installe <strong>d&#233;sactiv&#233;</strong> : un moyen de paiement ne doit
+      jamais arriver pr&#234;t &#224; encaisser. Passez en &#171; Mode test &#187;, encaissez un paiement
+      d'essai, puis &#171; Activ&#233; &#187;.
     </p>
     <p>
-      Votre instance doit être <strong>joignable depuis internet, en HTTPS</strong> :
-      Mobupay y livre ses confirmations de paiement. Le bouton « Vérifier la connexion »
-      vous prévient si votre adresse publique ne convient pas.
+      Votre instance doit &#234;tre <strong>joignable depuis internet, en HTTPS</strong> :
+      Mobupay y livre ses confirmations de paiement. Le bouton &#171; V&#233;rifier la connexion &#187;
+      vous pr&#233;vient si votre adresse publique ne convient pas.
     </p>
   </div>
 
   <div class="oe_row oe_spaced">
-    <h3>Données transmises à Mobupay</h3>
+    <h3>Donn&#233;es transmises &#224; Mobupay</h3>
     <p>
-      Ce module transmet des données à Mobupay (mobupay.nc) pour chaque paiement initié.
-      Rien n'est transmis tant qu'aucun paiement n'est lancé.
+      Ce module transmet des donn&#233;es &#224; Mobupay (mobupay.nc) pour chaque paiement initi&#233;.
+      Rien n'est transmis tant qu'aucun paiement n'est lanc&#233;.
     </p>
     <ul>
       <li>
-        <strong>Toujours</strong>, car nécessaires à l'encaissement : la référence de la
+        <strong>Toujours</strong>, car n&#233;cessaires &#224; l'encaissement : la r&#233;f&#233;rence de la
         commande, son montant et sa devise.
       </li>
       <li>
-        <strong>Si l'option « Détail de la commande » reste active</strong> : les lignes
-        de commande, leur libellé, leur quantité, leur prix et leurs taxes.
+        <strong>Si l'option &#171; D&#233;tail de la commande &#187; reste active</strong> : les lignes
+        de commande, leur libell&#233;, leur quantit&#233;, leur prix et leurs taxes.
       </li>
       <li>
-        <strong>Si l'option « Coordonnées du client » reste active</strong> : le nom du
+        <strong>Si l'option &#171; Coordonn&#233;es du client &#187; reste active</strong> : le nom du
         client, ses adresses de facturation et de livraison, son courriel et son
-        téléphone. Ces informations servent aux mentions obligatoires d'une facture.
+        t&#233;l&#233;phone. Ces informations servent aux mentions obligatoires d'une facture.
       </li>
     </ul>
     <p>
-      Les deux options se désactivent depuis la fiche du fournisseur de paiement. Les
-      données de carte ne transitent jamais par votre serveur : le client les saisit sur
-      la page hébergée de Mobupay.
-      <a href="https://mobupay.nc/privacy">Politique de confidentialité</a>.
+      Les deux options se d&#233;sactivent depuis la fiche du fournisseur de paiement. Les
+      donn&#233;es de carte ne transitent jamais par votre serveur : le client les saisit sur
+      la page h&#233;berg&#233;e de Mobupay.
+      <a href="https://mobupay.nc/privacy">Politique de confidentialit&#233;</a>.
     </p>
   </div>
 
   <div class="oe_row oe_spaced">
-    <h3>À propos de Mobupay</h3>
+    <h3>&#192; propos de Mobupay</h3>
     <p>
-      Mobupay est agent d'eZyness, établissement de monnaie électronique agréé par
-      l'ACPR. Les fonds encaissés sont reversés en XPF sur un compte bancaire local.
+      Mobupay est agent d'eZyness, &#233;tablissement de monnaie &#233;lectronique agr&#233;&#233; par
+      l'ACPR. Les fonds encaiss&#233;s sont revers&#233;s en XPF sur un compte bancaire local.
     </p>
   </div>
 </section>
