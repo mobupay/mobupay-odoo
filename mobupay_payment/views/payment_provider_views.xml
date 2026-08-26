@@ -7,6 +7,10 @@
         <field name="arch" type="xml">
             <group name="provider_credentials" position="inside">
                 <group invisible="code != 'mobupay'">
+                    <div class="text-muted mb-2" colspan="2">
+                        Un seul champ à renseigner : votre clé API. Tout le reste est
+                        récupéré automatiquement à l'enregistrement.
+                    </div>
                     <field name="mobupay_api_key"
                            required="code == 'mobupay' and state != 'disabled'"
                            password="True"/>

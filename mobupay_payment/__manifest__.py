@@ -7,7 +7,7 @@
     # d'une AUTRE serie. Un manifeste en « 17.0.1.0.0 » s'installe donc sur la 17 et
     # echoue sur la 18 avec « invalid manifest », sans autre explication.
     # Constate en installant reellement le module sur les deux, le 2026-08-25.
-    "version": "1.0.1",
+    "version": "1.0.2",
     "summary": "Paiement par carte via Mobupay (Nouvelle-Calédonie et Pacifique)",
     # Rendue en reStructuredText par Odoo : listes a puces avec ligne vide avant et
     # apres, et AUCUNE ligne indentee sous un paragraphe, sinon le rendu casse et la
@@ -66,7 +66,11 @@ Politique de confidentialité : https://mobupay.nc/privacy
     ],
     # Image de couverture de la fiche Odoo Apps. La cle `images` est ce que la place
     # de marche lit pour l'illustration : sans elle, la fiche sort sans visuel.
-    "images": ["static/description/banner.png"],
+    "images": [
+        "static/description/banner.png",
+        "static/description/ecran-configuration.png",
+        "static/description/ecran-paiement.png",
+    ],
     "post_init_hook": "post_init_hook",
     "uninstall_hook": "uninstall_hook",
     "installable": True,

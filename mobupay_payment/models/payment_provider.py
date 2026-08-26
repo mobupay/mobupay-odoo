@@ -35,9 +35,15 @@ class PaymentProvider(models.Model):
         groups="base.group_system",
     )
     mobupay_webhook_secret = fields.Char(
-        string="Secret de signature",
+        # Le libelle DIT qu'il est automatique. Sans cela, le marchand voit deux champs
+        # masques cote a cote et croit devoir remplir les deux : c'est exactement ce que
+        # ce module cherchait a supprimer, et ce serait le premier reflexe devant la
+        # fiche. Constate en preparant les captures de la fiche Odoo Apps le 2026-08-26.
+        string="Secret de signature (rempli automatiquement)",
         readonly=True,
-        help="Récupéré automatiquement à l'enregistrement. Vous n'avez pas à le saisir.",
+        help="Récupéré tout seul à partir de votre clé API. Vous n'avez rien à saisir "
+             "ici : ce champ n'est affiché que pour vous montrer que la connexion a "
+             "abouti.",
         groups="base.group_system",
     )
     mobupay_api_base = fields.Char(
@@ -190,10 +196,19 @@ class PaymentProvider(models.Model):
         """L'URL publique de l'instance doit etre joignable depuis internet.
 
         Le module transmet son `notificationUrl` a chaque paiement, construit depuis
-        `web.base.url`. Si cette URL pointe sur `localhost` ou n'est pas en HTTPS,
+        `get_base_url()`. Si cette URL pointe sur `localhost` ou n'est pas en HTTPS,
         Mobupay ne peut RIEN livrer : les paiements aboutissent, et les commandes
         restent eternellement en attente. Le marchand conclut « ça ne marche pas »
         sans qu'aucune erreur ne soit jamais apparue.
+
+        ATTENTION AU REMEDE QU'ON CONSEILLE. `website_payment` SURCHARGE
+        `get_base_url()` sur `payment.provider` et donne la priorite a
+        `request.httprequest.url_root`, c'est-a-dire a **l'adresse par laquelle on
+        navigue**, pour gerer les installations multi-sites. Ni `web.base.url` ni le
+        domaine du site web ne changent donc quoi que ce soit tant qu'on accede a Odoo
+        par une autre adresse. Conseiller « renseignez l'adresse dans les parametres »
+        envoyait le marchand modifier un reglage sans effet : constate le 2026-08-26 en
+        preparant les captures, ou trois reglages successifs n'ont rien change.
 
         On ne bloque pas -- une instance de developpement est un cas legitime -- mais on
         le DIT, au moment ou le marchand verifie sa connexion.
@@ -207,15 +222,17 @@ class PaymentProvider(models.Model):
         host = base.split("//")[-1].split("/")[0].split(":")[0].lower()
         if host in ("localhost", "127.0.0.1", "0.0.0.0") or host.endswith(".local"):
             return _(
-                "L'adresse publique de votre instance est « %s ». Mobupay ne pourra pas "
-                "y livrer ses confirmations de paiement, et vos commandes resteront en "
-                "attente. Renseignez l'adresse réelle de votre boutique dans les "
-                "paramètres généraux.", base,
+                "Vous accédez à Odoo par « %s ». Mobupay ne pourra pas y livrer ses "
+                "confirmations de paiement, et vos commandes resteraient en attente. "
+                "C'est normal sur un poste de développement. Refaites cette "
+                "vérification en accédant à Odoo par l'adresse publique de votre "
+                "boutique, celle que vos clients utilisent.", base,
             )
         if not base.startswith("https://"):
             return _(
-                "L'adresse publique de votre instance n'est pas en HTTPS (« %s »). "
-                "Mobupay n'y livrera pas ses confirmations de paiement.", base,
+                "Vous accédez à Odoo par « %s », qui n'est pas en HTTPS. Mobupay n'y "
+                "livrera pas ses confirmations de paiement. Refaites cette "
+                "vérification en accédant à Odoo par son adresse HTTPS.", base,
             )
         return None
 
