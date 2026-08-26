@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Formulaire de redirection. Le modele Mobupay est une simple redirection vers
+        une page hebergee : aucun champ de carte n'est affiche ici, et aucune donnee
+        de carte ne transite par le serveur du marchand.
+    -->
+    <template id="redirect_form">
+        <form t-att-action="api_url" method="get">
+            <!-- Odoo soumet ce formulaire tout seul ; le bouton n'est la que pour un
+                 navigateur sans JavaScript. -->
+            <input type="submit" class="btn btn-primary" value="Payer avec Mobupay"/>
+        </form>
+    </template>
+</odoo>

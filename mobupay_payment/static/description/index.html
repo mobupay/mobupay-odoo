@@ -1,0 +1,81 @@
+<section class="oe_container">
+  <div class="oe_row oe_spaced">
+    <h2 class="oe_slogan">Encaissez par carte avec Mobupay</h2>
+    <h3 class="oe_slogan">Nouvelle-Calédonie et Pacifique, reversement en XPF sur un compte local</h3>
+  </div>
+
+  <div class="oe_row oe_spaced">
+    <div class="oe_span6">
+      <h3>Un seul champ à renseigner</h3>
+      <p>
+        Vous collez votre clé API, vous enregistrez, c'est tout. Le secret de signature
+        des webhooks est récupéré automatiquement, et l'enregistrement vérifie votre clé
+        et vous dit dans quel environnement vous êtes, test ou production.
+      </p>
+    </div>
+    <div class="oe_span6">
+      <h3>Vos données de carte ne transitent jamais par votre serveur</h3>
+      <p>
+        L'acheteur paie sur une page hébergée sécurisée. Votre commande est mise à jour
+        par un webhook signé, seule source de vérité sur l'issue d'un paiement.
+      </p>
+    </div>
+  </div>
+
+  <div class="oe_row oe_spaced">
+    <div class="oe_span6">
+      <h3>Le détail de votre commande est transmis</h3>
+      <p>
+        Articles, taxes par ligne avec leur libellé réel, frais de port, remises, et
+        coordonnées du client. Tout est déduit de la commande : vous n'avez aucun champ
+        à remplir. Vos factures Mobupay détaillent donc chaque ligne et portent les
+        mentions obligatoires.
+      </p>
+    </div>
+    <div class="oe_span6">
+      <h3>Un paiement n'est jamais refusé pour un motif de facturation</h3>
+      <p>
+        S'il manque une mention obligatoire, le paiement aboutit quand même. La facture
+        est créée en brouillon avec tout le détail de la commande, et elle indique ce
+        qu'il reste à compléter.
+      </p>
+    </div>
+  </div>
+
+  <div class="oe_row oe_spaced">
+    <h3>Données transmises à Mobupay</h3>
+    <p>
+      Ce module transmet des données à Mobupay (mobupay.nc) pour chaque paiement initié.
+      Rien n'est transmis tant qu'aucun paiement n'est lancé.
+    </p>
+    <ul>
+      <li>
+        <strong>Toujours</strong>, car nécessaires à l'encaissement : la référence de la
+        commande, son montant et sa devise.
+      </li>
+      <li>
+        <strong>Si l'option « Détail de la commande » reste active</strong> : les lignes
+        de commande, leur libellé, leur quantité, leur prix et leurs taxes.
+      </li>
+      <li>
+        <strong>Si l'option « Coordonnées du client » reste active</strong> : le nom du
+        client, ses adresses de facturation et de livraison, son courriel et son
+        téléphone. Ces informations servent aux mentions obligatoires d'une facture.
+      </li>
+    </ul>
+    <p>
+      Les deux options se désactivent depuis la fiche du fournisseur de paiement. Les
+      données de carte ne transitent jamais par votre serveur : le client les saisit sur
+      la page hébergée de Mobupay.
+      <a href="https://mobupay.nc/privacy">Politique de confidentialité</a>.
+    </p>
+  </div>
+
+  <div class="oe_row oe_spaced">
+    <h3>À propos de Mobupay</h3>
+    <p>
+      Mobupay est agent d'eZyness, établissement de monnaie électronique agréé par
+      l'ACPR. Les fonds encaissés sont reversés en XPF sur un compte bancaire local.
+    </p>
+  </div>
+</section>

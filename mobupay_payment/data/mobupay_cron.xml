@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Reprise des transactions en attente. Le webhook reste la source de verite ; ce
+        cron rattrape le client qui a ferme son onglet ET l'instance dont l'adresse
+        publique empeche toute livraison. Sans lui, un paiement encaisse peut laisser
+        une commande en attente pour toujours.
+
+        Toutes les dix minutes : assez souvent pour qu'aucune commande ne dorme une
+        journee, assez rare pour ne pas marteler l'API. La page de statut, elle, sonde
+        en direct, donc le client qui attend n'a pas a patienter dix minutes.
+    -->
+    <record id="cron_mobupay_poll_pending" model="ir.cron">
+        <field name="name">Mobupay : reprise des paiements en attente</field>
+        <field name="model_id" ref="payment.model_payment_transaction"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_mobupay_poll_pending()</field>
+        <field name="interval_number">10</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

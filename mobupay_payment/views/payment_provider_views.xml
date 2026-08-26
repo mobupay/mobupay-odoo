@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="payment_provider_form" model="ir.ui.view">
+        <field name="name">mobupay.payment.provider.form</field>
+        <field name="model">payment.provider</field>
+        <field name="inherit_id" ref="payment.payment_provider_form"/>
+        <field name="arch" type="xml">
+            <group name="provider_credentials" position="inside">
+                <group invisible="code != 'mobupay'">
+                    <field name="mobupay_api_key"
+                           required="code == 'mobupay' and state != 'disabled'"
+                           password="True"/>
+                    <!--
+                        Le secret de signature n'est PAS saisi : il est recupere avec la
+                        seule cle API, qui y donne deja acces. Deux secrets a saisir au
+                        lieu d'un etait la premiere source d'erreur a l'installation des
+                        trois connecteurs PHP, et un secret mal copie ne se voyait qu'au
+                        premier paiement, webhook rejete en 403 et commande bloquee.
+                        Le champ reste affiche en lecture seule pour que le marchand
+                        VOIE que la connexion a abouti.
+                    -->
+                    <field name="mobupay_webhook_secret" password="True"/>
+                    <field name="mobupay_api_base" groups="base.group_no_one"/>
+                    <button name="action_mobupay_verify_connection"
+                            type="object"
+                            string="Vérifier la connexion"
+                            class="btn-secondary"
+                            invisible="not mobupay_api_key"/>
+                </group>
+                <group string="Données transmises à Mobupay" invisible="code != 'mobupay'">
+                    <div class="text-muted mb-2" colspan="2">
+                        Tout est déduit de la commande : vous n'avez aucun champ à remplir.
+                        Les informations absentes du tunnel de commande sont simplement omises.
+                    </div>
+                    <field name="mobupay_send_order_details"/>
+                    <field name="mobupay_send_customer_details"/>
+                    <field name="mobupay_invoicing"/>
+                </group>
+            </group>
+        </field>
+    </record>
+</odoo>

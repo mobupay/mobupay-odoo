@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="payment_provider_mobupay" model="payment.provider">
+        <field name="name">Mobupay</field>
+        <field name="code">mobupay</field>
+        <field name="image_128" type="base64" file="mobupay_payment/static/description/icon.png"/>
+        <field name="redirect_form_view_id" ref="mobupay_payment.redirect_form"/>
+        <field name="payment_method_ids" eval="[(6, 0, [ref('payment.payment_method_card')])]"/>
+        <!--
+            DESACTIVE a l'installation : un fournisseur de paiement ne doit JAMAIS
+            s'installer pret a encaisser. Le marchand renseigne sa cle, verifie la
+            connexion, puis bascule sciemment en test puis en production.
+        -->
+        <field name="state">disabled</field>
+        <field name="allow_tokenization">False</field>
+    </record>
+</odoo>
