@@ -100,7 +100,7 @@ class MobupayController(http.Controller):
 
     @http.route("/payment/mobupay/return", type="http", auth="public", methods=["GET"],
                 csrf=False, save_session=False)
-    def mobupay_return(self, reference=None, **_kwargs):
+    def mobupay_return(self, odoo_reference=None, paymentId=None, reference=None, **_kwargs):
         """Retour du client depuis la page de paiement (PLAN-960 lot 0.3).
 
         Relit le paiement aupres de l'API AVANT d'afficher la page de statut : le
@@ -111,13 +111,20 @@ class MobupayController(http.Controller):
         Sans danger : la route ne fait que RELIRE l'etat reel aupres de Mobupay, avec
         la cle du marchand. Elle ne peut rien forger, et l'etrangleur borne les appels.
         """
-        if reference:
-            tx = request.env["payment.transaction"].sudo().search(
-                [("reference", "=", reference), ("provider_code", "=", "mobupay")], limit=1
-            )
-            if tx:
-                try:
-                    tx._mobupay_poll(min_interval_seconds=2)
-                except Exception:  # noqa: BLE001 -- jamais casser la page du client
-                    _logger.exception("Mobupay : reprise au retour en échec pour %s", reference)
+        # `odoo_reference` est NOTRE parametre ; `paymentId` est ajoute par Mobupay ;
+        # `reference` ne sert qu'aux sessions ouvertes avant la 1.2.1, ou Mobupay
+        # l'ecrasait deja par sa propre reference de recu (`MBP-...`).
+        Transactions = request.env["payment.transaction"].sudo()
+        tx = Transactions.browse()
+        for champ, valeur in (("reference", odoo_reference), ("provider_reference", paymentId),
+                              ("reference", reference)):
+            if valeur and not tx:
+                tx = Transactions.search(
+                    [(champ, "=", valeur), ("provider_code", "=", "mobupay")], limit=1
+                )
+        if tx:
+            try:
+                tx._mobupay_poll(min_interval_seconds=2)
+            except Exception:  # noqa: BLE001 -- jamais casser la page du client
+                _logger.exception("Mobupay : reprise au retour en échec pour %s", tx.reference)
         return request.redirect("/payment/status")
