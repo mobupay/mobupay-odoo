@@ -112,18 +112,26 @@ def base_url_warning(provider):
     probleme = logic.base_url_problem(base)
     if probleme == "missing":
         return _("L'adresse publique de votre instance n'est pas renseignée.")
+    # Sans notification, une commande se confirme quand meme : au retour du client
+    # (`/payment/mobupay/return`), ou par la tache de reprise, toutes les dix minutes.
+    # Ce qui ne remonte PAS, c'est ce qui se passe hors d'Odoo : un remboursement fait
+    # depuis l'espace Mobupay. Le message disait l'inverse (« vos commandes
+    # resteraient en attente »), corrige en 1.2.2.
     if probleme == "local":
         return _(
             "Vous accédez à Odoo par « %s ». Mobupay ne pourra pas y livrer ses "
-            "confirmations de paiement, et vos commandes resteraient en attente. C'est "
-            "normal sur un poste de développement. Refaites cette vérification en "
-            "accédant à Odoo par l'adresse publique de votre boutique.", base,
+            "notifications : vos commandes se confirmeront au retour du client, ou par la "
+            "vérification automatique qui passe toutes les dix minutes. C'est normal sur "
+            "un poste de développement. En production, refaites cette vérification en "
+            "accédant à Odoo par l'adresse publique de votre boutique, en HTTPS.", base,
         )
     if probleme == "not_https":
         return _(
             "Vous accédez à Odoo par « %s », qui n'est pas en HTTPS. Mobupay n'y livrera "
-            "pas ses confirmations de paiement. Refaites cette vérification en accédant "
-            "à Odoo par son adresse HTTPS.", base,
+            "pas ses notifications : vos commandes se confirmeront au retour du client, ou "
+            "par la vérification automatique qui passe toutes les dix minutes, mais un "
+            "remboursement fait depuis votre espace Mobupay n'apparaîtra pas dans Odoo. "
+            "Refaites cette vérification en accédant à Odoo par son adresse HTTPS.", base,
         )
     return None
 
