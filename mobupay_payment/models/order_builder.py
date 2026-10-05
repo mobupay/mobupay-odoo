@@ -33,15 +33,33 @@ B. LES FRAIS DE PORT SONT UNE LIGNE DE COMMANDE ORDINAIRE. Chez Odoo, la livrais
 from . import mobupay_order_payload as core
 
 
-def build(order, currency_iso, with_items=True, with_customer=True, invoicing="no",
-          translate=lambda text: text):
+#: Noms des champs Odoo lus par ce module, PAR SERIE. Chaque couche passe les siens
+#: (PLAN-960) : la 19 a renomme `sale.order.line.tax_id` en `tax_ids` et supprime
+#: `res.partner.mobile`. Un `getattr(line, "tax_id", [])` rendait alors une liste VIDE,
+#: sans erreur, et la facture sortait sans TGC.
+CHAMPS_17_18 = {"sale_line_taxes": "tax_id", "partner_mobile": "mobile"}
+CHAMPS_19_20 = {"sale_line_taxes": "tax_ids", "partner_mobile": None}
+
+
+class ChampAbsent(Exception):
+    """Un champ attendu n'existe pas sur le modele de la serie installee.
+
+    Leve BRUYAMMENT plutot que de lire une liste vide : c'est la seule difference
+    entre « aucune taxe » et « taxes perdues en silence ».
+    """
+
+
+def build(order, currency_iso, with_items=True, with_customer=True, invoicing=None,
+          translate=lambda text: text, champs=None):
     """Construit la charge utile depuis une `sale.order`.
 
     :param order: `sale.order` Odoo
     :param currency_iso: code devise ISO (`XPF`, `EUR`)
     :param with_items: transmettre le detail des lignes
     :param with_customer: transmettre les coordonnees du client
-    :param invoicing: 'no' | 'yes' | 'yes_send'
+    :param invoicing: l'objet `invoicing` a transmettre, deja decide par
+        `mobupay_logic.invoicing_request` (jamais deux facturations), ou `None`
+    :param champs: noms des champs de la serie (`CHAMPS_17_18` ou `CHAMPS_19_20`)
     :param translate: fonction de traduction des libelles visibles du client. Le noyau
         ne connait pas le systeme de traduction d'Odoo, les libelles lui sont passes.
     :return: dict {'order': ..., 'degraded': bool, 'notes': [str]}
@@ -58,8 +76,16 @@ def build(order, currency_iso, with_items=True, with_customer=True, invoicing="n
         "currency": currency_iso,
     }
 
+    champs = champs or CHAMPS_17_18
+
     if with_items:
-        built = _build_items(order, currency_iso, translate)
+        try:
+            built = _build_items(order, currency_iso, translate, champs)
+        except ChampAbsent as exc:
+            # On n'envoie PAS un detail faux : sans les taxes, la facture porterait
+            # une base imposable fausse. Pas de detail du tout vaut mieux.
+            built = None
+            notes.append("ERREUR items: champ %s absent sur cette serie d'Odoo, detail abandonne" % exc)
         if built is None:
             degraded = True
             notes.append("items: aucune ligne exploitable, detail abandonne")
@@ -76,22 +102,78 @@ def build(order, currency_iso, with_items=True, with_customer=True, invoicing="n
                     notes.append("items: ecart d'arrondi resorbe")
 
     if with_customer:
-        buyer = _build_buyer(order)
+        buyer = _build_buyer(order, champs)
         if buyer:
             payload["buyer"] = buyer
         delivery = _build_delivery(order)
         if delivery:
             payload["delivery"] = delivery
 
-    if invoicing in ("yes", "yes_send"):
-        payload["invoicing"] = {"enabled": True}
-        if invoicing == "yes_send":
-            payload["invoicing"]["send"] = True
+    if invoicing:
+        # Mention obligatoire (decret 2022-1299) comprise : `invoicing_request` la
+        # borne aux trois valeurs que l'API accepte. Sans elle, la facture est creee
+        # en brouillon et n'est JAMAIS emise (PLAN-619).
+        payload["invoicing"] = dict(invoicing)
 
     return {"order": payload, "degraded": degraded, "notes": notes}
 
 
-def _build_items(order, currency_iso, translate):
+def build_from_invoice(move, currency_iso, with_items=True, with_customer=True,
+                       translate=lambda text: text):
+    """Charge utile depuis une FACTURE Odoo (`account.move`), payee en ligne.
+
+    PLAN-960 lot 5.4. Le portail d'Odoo propose « Payer maintenant » sur une facture,
+    et un lien de paiement peut viser une facture : la transaction ne porte alors
+    aucune commande, et le module n'envoyait que le montant. Le client voyait une
+    page de paiement sans un article.
+
+    JAMAIS d'objet `invoicing` ici : la facture EXISTE, c'est Odoo qui l'a emise. En
+    demander une a Mobupay ferait deux factures pour une vente.
+    """
+    amount = core.to_minor_units(move.amount_total, currency_iso)
+    notes = []
+    degraded = False
+    payload = {"reference": str(move.name or ""), "amount": amount, "currency": currency_iso}
+
+    if with_items:
+        items = []
+        quantity_label = translate("Quantité : %s")
+        fallback_label = translate("Article")
+        tax_fallback = translate("Taxe")
+        for line in getattr(move, "invoice_line_ids", []) or []:
+            if getattr(line, "display_type", "product") not in (False, None, "product"):
+                continue  # sections, notes : titres de mise en page
+            qty = float(getattr(line, "quantity", 0.0) or 0.0)
+            gross_ttc = core.to_minor_units(line.price_total, currency_iso)
+            if gross_ttc <= 0:
+                continue
+            composed = core.compose_line(
+                _line_label(line), qty, gross_ttc, gross_ttc,
+                _taxes_of(getattr(line, "tax_ids", []), tax_fallback),
+                quantity_label, fallback_label,
+            )
+            if composed is not None:
+                items.append(composed)
+        if items:
+            reconciled = core.reconcile(items, 0, amount)
+            if reconciled is None:
+                degraded = True
+                notes.append("items: reconciliation impossible, detail abandonne")
+            else:
+                payload["items"] = reconciled["items"]
+        else:
+            degraded = True
+            notes.append("items: aucune ligne exploitable, detail abandonne")
+
+    if with_customer:
+        buyer = _buyer_from_partner(getattr(move, "partner_id", None), {"partner_mobile": None})
+        if buyer:
+            payload["buyer"] = buyer
+
+    return {"order": payload, "degraded": degraded, "notes": notes}
+
+
+def _build_items(order, currency_iso, translate, champs):
     """Lignes de commande, frais de port compris (regle B)."""
     items = []
     quantity_label = translate("Quantité : %s")
@@ -115,7 +197,7 @@ def _build_items(order, currency_iso, translate):
             qty,
             gross_ttc,
             gross_ttc,
-            _line_taxes(line, tax_fallback),
+            _line_taxes(line, tax_fallback, champs),
             quantity_label,
             fallback_label,
         )
@@ -146,7 +228,7 @@ def _line_label(line):
     return str(label or "").replace("\n", " ")
 
 
-def _line_taxes(line, fallback_label):
+def _line_taxes(line, fallback_label, champs):
     """Taxes d'une ligne, en centiemes de pourcent.
 
     Odoo permet PLUSIEURS taxes sur une meme ligne, et des taxes en montant fixe. On
@@ -155,8 +237,17 @@ def _line_taxes(line, fallback_label):
     montant reste inclus dans le total de la ligne, donc dans ce que le client paie ;
     seule sa VENTILATION est perdue, ce qui est le moindre mal.
     """
+    champ = champs["sale_line_taxes"]
+    fields = getattr(line, "_fields", None)
+    if fields is not None and champ not in fields:
+        raise ChampAbsent(champ)
+    return _taxes_of(getattr(line, champ, []), fallback_label)
+
+
+def _taxes_of(taxes, fallback_label):
+    """Taxes en POURCENTAGE d'un jeu de taxes Odoo (commande ou facture)."""
     detail = []
-    for tax in getattr(line, "tax_id", []) or []:
+    for tax in taxes or []:
         if getattr(tax, "amount_type", "percent") != "percent":
             continue
         rate = float(getattr(tax, "amount", 0.0) or 0.0)
@@ -167,20 +258,26 @@ def _line_taxes(line, fallback_label):
     return detail
 
 
-def _build_buyer(order):
+def _build_buyer(order, champs):
     """Coordonnees de l'acheteur, depuis le partenaire de FACTURATION.
 
     C'est lui qui porte les mentions obligatoires, pas l'adresse de livraison.
     """
-    buyer = {}
     partner = getattr(order, "partner_invoice_id", None) or getattr(order, "partner_id", None)
-    if partner is None:
+    return _buyer_from_partner(partner, champs)
+
+
+def _buyer_from_partner(partner, champs):
+    buyer = {}
+    if partner is None or not getattr(partner, "id", False):
         return buyer
 
     if getattr(partner, "id", False):
         buyer["id"] = str(partner.id)
     core.put(buyer, "email", getattr(partner, "email", ""))
-    core.put(buyer, "phone", getattr(partner, "mobile", "") or getattr(partner, "phone", ""))
+    mobile_field = champs.get("partner_mobile")
+    mobile = getattr(partner, mobile_field, "") if mobile_field else ""
+    core.put(buyer, "phone", mobile or getattr(partner, "phone", ""))
 
     # Odoo ne separe pas prenom et nom sur un partenaire : `name` porte les deux pour
     # une personne, et la raison sociale pour une societe. On ne DEVINE pas un
