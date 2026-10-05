@@ -1,21 +1,22 @@
 # -*- coding: utf-8 -*-
-"""Fournisseur de paiement Mobupay.
+"""Fournisseur de paiement Mobupay -- couche Odoo 20.0.
 
-PLAN-599 lots O1 et O2. Un seul champ visible pour le marchand : sa cle API. Le secret
-de signature des webhooks est recupere automatiquement a l'enregistrement, avec cette
-meme cle qui y donne deja acces, donc sans accorder aucun droit nouveau.
-
-C'est la lecon des trois autres connecteurs PHP : le marchand y saisissait DEUX
-secrets, et le second, colle a la main, ne se voyait defaillant qu'au premier
-paiement, quand le webhook partait en 403 et que la commande restait en attente.
+Un seul champ visible pour le marchand : sa cle API. Le secret de signature des
+webhooks est recupere automatiquement a l'enregistrement, avec cette meme cle qui y
+donne deja acces. La logique commune aux quatre series vit dans `mobupay_common` et
+`mobupay_logic` ; ce fichier ne porte que ce qui est propre au cadre 17/18 : l'etat
+du fournisseur ne se lit plus sur `state`, SUPPRIME en 20 (odoo/odoo#249545), mais sur
+`is_live` (production ou test) et `is_published` (propose au paiement).
 """
 
 import logging
 
 from odoo import _, api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
 
 from . import mobupay_api
+from . import mobupay_common as common
+from . import mobupay_logic as logic
 
 _logger = logging.getLogger(__name__)
 
@@ -27,24 +28,28 @@ class PaymentProvider(models.Model):
         selection_add=[("mobupay", "Mobupay")],
         ondelete={"mobupay": "set default"},
     )
+    # PLAN-960 (D5) — `copy=False` sur les trois identifiants. Odoo RECOPIE le
+    # fournisseur dans chaque societe (`_setup_provider`, et `res.company.create` en
+    # 19) : sans cela, une societe creee apres l'installation heritait de la cle de la
+    # premiere, et, activee sans la changer, encaissait sur le compte Mobupay d'une
+    # AUTRE societe. Odoo a pose `copy=False` sur les identifiants de ses propres
+    # fournisseurs entre 18 et 19.
     mobupay_api_key = fields.Char(
         string="Clé API",
-        help="Clé sk_test_… pour le mode test, sk_live_… en production. "
-             "Espace marchand Mobupay, rubrique Développeurs, Clés API. "
-             "C'est le seul secret à saisir.",
+        help="Clé sk_test_… pour le mode test, sk_live_… en production. Espace marchand "
+             "Mobupay, rubrique Développeurs, Clés API. C'est le seul secret à saisir.",
         groups="base.group_system",
+        copy=False,
     )
     mobupay_webhook_secret = fields.Char(
-        # Le libelle DIT qu'il est automatique. Sans cela, le marchand voit deux champs
-        # masques cote a cote et croit devoir remplir les deux : c'est exactement ce que
-        # ce module cherchait a supprimer, et ce serait le premier reflexe devant la
-        # fiche. Constate en preparant les captures de la fiche Odoo Apps le 2026-08-26.
+        # Le libelle DIT qu'il est automatique : sans cela le marchand voit deux champs
+        # masques cote a cote et croit devoir remplir les deux (constate le 2026-08-26).
         string="Secret de signature (rempli automatiquement)",
         readonly=True,
         help="Récupéré tout seul à partir de votre clé API. Vous n'avez rien à saisir "
-             "ici : ce champ n'est affiché que pour vous montrer que la connexion a "
-             "abouti.",
+             "ici : ce champ n'est affiché que pour vous montrer que la connexion a abouti.",
         groups="base.group_system",
+        copy=False,
     )
     mobupay_api_base = fields.Char(
         string="Base API",
@@ -55,238 +60,151 @@ class PaymentProvider(models.Model):
     mobupay_send_order_details = fields.Boolean(
         string="Détail de la commande",
         default=True,
-        help="Transmettre les articles, les taxes, les frais de port et les remises. "
-             "Le client voit le récapitulatif de son panier sur la page de paiement, "
-             "et vos factures Mobupay détaillent chaque ligne.",
+        help="Transmettre les articles, les taxes, les frais de port et les remises. Le "
+             "client voit le récapitulatif de son panier sur la page de paiement, et vos "
+             "factures Mobupay détaillent chaque ligne.",
     )
     mobupay_send_customer_details = fields.Boolean(
         string="Coordonnées du client",
         default=True,
         help="Transmettre nom, adresse de facturation, téléphone et adresse de "
-             "livraison. Nécessaire pour qu'une facture porte les mentions "
-             "obligatoires. Tout est déduit de la commande.",
+             "livraison. Nécessaire pour qu'une facture porte les mentions obligatoires. "
+             "Tout est déduit de la commande.",
     )
+    # PLAN-960 lot 5.1 — DEUX MODES EXCLUSIFS : jamais deux factures pour une vente
+    # (arbitrage du 2026-10-05). Les valeurs techniques ne changent pas, une
+    # base deja installee garde son reglage ; les libelles disent desormais QUI facture.
     mobupay_invoicing = fields.Selection(
         selection=[
-            ("no", "Ne pas établir de facture"),
-            ("yes", "Établir une facture pour chaque paiement"),
-            ("yes_send", "Établir et envoyer la facture au client"),
+            ("no", "Odoo établit mes factures (Mobupay n'en établit aucune)"),
+            ("yes", "Mobupay établit la facture de chaque paiement"),
+            ("yes_send", "Mobupay établit la facture et l'envoie au client"),
         ],
-        string="Facture Mobupay",
+        string="Qui établit les factures",
         default="no",
-        help="Si des mentions obligatoires manquent, le paiement aboutit quand même "
-             "et la facture reste en brouillon, à compléter depuis votre espace "
-             "marchand Mobupay.",
+        help="Si vous facturez dans Odoo, laissez Odoo : Mobupay n'établira aucune "
+             "facture, pour qu'une vente n'en porte jamais deux. Choisissez Mobupay si "
+             "vous encaissez depuis Odoo sans y facturer. Le module Facturation doit "
+             "alors être activé dans votre espace marchand Mobupay.",
+    )
+    # PLAN-619 — Mention obligatoire de la facture (decret 2022-1299). Mobupay ne la
+    # devine pas : biens et services ne portent pas les memes mentions.
+    mobupay_operation_type = fields.Selection(
+        selection=[
+            ("GOODS", "Livraison de biens"),
+            ("SERVICES", "Prestation de services"),
+            ("MIXED", "Les deux"),
+        ],
+        string="Nature de l'opération",
+        default="GOODS",
+        help="Mention obligatoire de la facture. Une boutique qui vend des produits "
+             "laisse « Livraison de biens ». Choisissez « Les deux » si vos commandes "
+             "mêlent produits et prestations.",
+    )
+    # PLAN-621 — multi-boutique. Facultatif : la voie recommandee est de rattacher la
+    # cle API a sa boutique depuis l'espace marchand.
+    mobupay_store_id = fields.Char(
+        string="Boutique Mobupay",
+        help="Code de la boutique Mobupay à laquelle rattacher les paiements de ce site "
+             "(par exemple PAITA). À remplir uniquement si la même clé API équipe "
+             "plusieurs sites.",
+        copy=False,
     )
 
     # ── Contrat du module `payment` ─────────────────────────────────────────
 
-    def _get_supported_currencies(self):
-        """Mobupay n'encaisse qu'en EUR et en XPF.
+    def _compute_feature_support_fields(self):
+        """Le remboursement, partiel compris (PLAN-960, D1).
 
-        Le declarer ici plutot que de laisser l'API refuser : Odoo n'affiche alors
-        simplement pas Mobupay au paiement d'une commande dans une autre devise, au
-        lieu de le proposer puis d'echouer. Une base Odoo neuve est en USD, donc le cas
-        n'a rien de theorique -- c'est le premier mur rencontre en recette.
+        Odoo n'affiche le bouton « Rembourser » que si `support_refund` n'est pas
+        `none`. Le module ne le declarait pas : le bouton n'est JAMAIS apparu, alors que
+        `_send_refund_request` etait ecrit et que le guide disait de l'utiliser.
+        `partial` : l'API accepte plusieurs remboursements partiels jusqu'au total
+        (PLAN-960 lot R).
         """
+        super()._compute_feature_support_fields()
+        self.filtered(lambda p: p.code == "mobupay").update({"support_refund": "partial"})
+
+    def _get_supported_currencies(self):
+        """Mobupay n'encaisse qu'en EUR et en XPF : Odoo ne le propose pas ailleurs."""
         supported = super()._get_supported_currencies()
         if self.code == "mobupay":
             supported = supported.filtered(lambda c: c.name in ("EUR", "XPF"))
         return supported
 
     def _get_default_payment_method_codes(self):
-        """Moyens de paiement proposes. Mobupay presente la carte sur sa page hebergee."""
         self.ensure_one()
         if self.code != "mobupay":
             return super()._get_default_payment_method_codes()
         return ["card"]
 
-    # ── Recuperation automatique du secret (lot B, transpose a Odoo) ────────
+    # ── Etat propre a la serie : `is_live`, `state` n'existe plus ───────────
+
+    def _mobupay_is_live(self):
+        """True en production, False en test.
+
+        En 20 il n'y a plus d'etat « desactive » distinct : un fournisseur non publie
+        n'est simplement pas propose au paiement. Le controle cle / environnement vaut
+        donc des qu'une cle est saisie, ce qui est le plus sur.
+        """
+        self.ensure_one()
+        return bool(self.is_live)
+
+    # ── Recuperation automatique du secret ──────────────────────────────────
 
     @api.model_create_multi
     def create(self, vals_list):
         providers = super().create(vals_list)
-        providers.filtered(lambda p: p.code == "mobupay")._mobupay_refresh_secret(silent=True)
+        common.refresh_secret(providers.filtered(lambda p: p.code == "mobupay"), silent=True)
         return providers
 
     def write(self, vals):
         result = super().write(vals)
-        # On ne redemande le secret que si quelque chose qui le determine a change :
-        # la cle, l'environnement, ou la base API. Le redemander a chaque ecriture
-        # ferait un appel sortant a chaque changement de libelle.
-        if {"mobupay_api_key", "state", "mobupay_api_base"} & set(vals):
-            self.filtered(lambda p: p.code == "mobupay")._mobupay_refresh_secret(silent=True)
+        # On ne redemande le secret que si ce qui le determine a change.
+        if {"mobupay_api_key", "is_live", "mobupay_api_base"} & set(vals):
+            common.refresh_secret(self.filtered(lambda p: p.code == "mobupay"), silent=True)
         return result
 
     def action_mobupay_verify_connection(self):
-        """Bouton « Vérifier la connexion » de la fiche fournisseur.
-
-        Le meme appel qu'a l'enregistrement, mais celui-ci PARLE : il leve une erreur
-        lisible si la cle est mauvaise, et affiche l'environnement si elle est bonne.
-        Un marchand qui croit etre en production alors qu'il est en test est un
-        incident garanti.
-        """
         self.ensure_one()
-        self._mobupay_refresh_secret(silent=False)
-        environment = _("TEST : aucun paiement réel ne sera encaissé") if self.state == "test" \
-            else _("PRODUCTION : les paiements seront réels")
-        message = _("Vous êtes en environnement de %s.", environment)
+        return common.verify_connection_action(self, bool(self._mobupay_is_live()))
 
-        # Une connexion valide ne suffit pas : si Mobupay ne peut pas nous joindre en
-        # retour, les paiements aboutiront et les commandes resteront en attente.
-        warning = self._mobupay_check_base_url()
-        if warning:
-            return {
-                "type": "ir.actions.client",
-                "tag": "display_notification",
-                "params": {
-                    "type": "warning",
-                    "sticky": True,
-                    "title": _("Connexion vérifiée, mais une confirmation ne pourra pas arriver"),
-                    "message": "%s\n\n%s" % (message, warning),
-                },
-            }
+    def action_mobupay_open_billing_activation(self):
+        self.ensure_one()
+        return common.activation_action(self)
 
-        return {
-            "type": "ir.actions.client",
-            "tag": "display_notification",
-            "params": {
-                "type": "success",
-                "sticky": False,
-                "title": _("Connexion à Mobupay vérifiée"),
-                "message": message,
-            },
-        }
+    # ── Garde-fous ──────────────────────────────────────────────────────────
 
-    # ── Deux garde-fous que la recette du 2026-08-26 a fait surgir ──────────
-
-    @api.constrains("code", "state", "mobupay_api_key")
+    @api.constrains("code", "is_live", "mobupay_api_key")
     def _mobupay_check_key_matches_state(self):
-        """La cle et l'environnement doivent CONCORDER.
+        common.check_environment(self, lambda p: p._mobupay_is_live())
 
-        Odoo porte son propre etat (« Mode test » / « Activé ») et Mobupay porte le
-        sien dans le prefixe de la cle. Rien n'empechait les deux de diverger : une
-        boutique en « Activé » avec une cle `sk_test_` croit encaisser pour de vrai et
-        n'encaisse rien, et l'inverse encaisse REELLEMENT une boutique qui se croit en
-        essai. C'est le pire des deux, et il ne se voit qu'au releve bancaire.
+    @api.constrains("code", "mobupay_invoicing")
+    def _mobupay_check_single_invoicing(self):
+        """Jamais deux factures pour une vente (PLAN-960 lot 5.1).
 
-        On refuse la combinaison au lieu de l'avertir : c'est une incoherence, pas une
-        preference, et la corriger est immediat.
+        Mobupay ne peut pas etablir les factures si Odoo les etablit deja tout seul a
+        chaque paiement : refus explicite, qui nomme le reglage a couper.
         """
         for provider in self:
-            if provider.code != "mobupay":
+            if provider.code != "mobupay" or provider.mobupay_invoicing not in logic.INVOICING_BY_MOBUPAY:
                 continue
-            key = (provider.mobupay_api_key or "").strip()
-            if not key or provider.state == "disabled":
-                continue
-            if provider.state == "enabled" and key.startswith("sk_test_"):
+            if provider._mobupay_odoo_auto_invoice():
                 raise ValidationError(_(
-                    "Vous activez Mobupay en PRODUCTION avec une clé de TEST "
-                    "(sk_test_…). Aucun paiement ne serait réellement encaissé. "
-                    "Renseignez votre clé sk_live_…, ou repassez en mode test."
-                ))
-            if provider.state == "test" and key.startswith("sk_live_"):
-                raise ValidationError(_(
-                    "Vous êtes en mode TEST avec une clé de PRODUCTION (sk_live_…). "
-                    "Les paiements seraient réellement encaissés. Renseignez votre clé "
-                    "sk_test_…, ou passez en Activé."
+                    "Odoo établit déjà une facture à chaque paiement (Ventes, Paramètres, "
+                    "« Facturation automatique »). Mobupay ne peut pas en établir une "
+                    "seconde pour la même vente : coupez ce réglage d'Odoo, ou laissez "
+                    "Odoo établir vos factures."
                 ))
 
-    def _mobupay_check_base_url(self):
-        """L'URL publique de l'instance doit etre joignable depuis internet.
+    def _mobupay_odoo_auto_invoice(self):
+        """Odoo 20 : un champ de SOCIETE (`sale_automatic_invoice`), plus un parametre."""
+        company = self.company_id or self.env.company
+        return bool(getattr(company, "sale_automatic_invoice", False))
 
-        Le module transmet son `notificationUrl` a chaque paiement, construit depuis
-        `get_base_url()`. Si cette URL pointe sur `localhost` ou n'est pas en HTTPS,
-        Mobupay ne peut RIEN livrer : les paiements aboutissent, et les commandes
-        restent eternellement en attente. Le marchand conclut « ça ne marche pas »
-        sans qu'aucune erreur ne soit jamais apparue.
-
-        ATTENTION AU REMEDE QU'ON CONSEILLE. `website_payment` SURCHARGE
-        `get_base_url()` sur `payment.provider` et donne la priorite a
-        `request.httprequest.url_root`, c'est-a-dire a **l'adresse par laquelle on
-        navigue**, pour gerer les installations multi-sites. Ni `web.base.url` ni le
-        domaine du site web ne changent donc quoi que ce soit tant qu'on accede a Odoo
-        par une autre adresse. Conseiller « renseignez l'adresse dans les parametres »
-        envoyait le marchand modifier un reglage sans effet : constate le 2026-08-26 en
-        preparant les captures, ou trois reglages successifs n'ont rien change.
-
-        On ne bloque pas -- une instance de developpement est un cas legitime -- mais on
-        le DIT, au moment ou le marchand verifie sa connexion.
-
-        :return: un message d'avertissement, ou None si tout va bien.
-        """
-        self.ensure_one()
-        base = (self.get_base_url() or "").strip()
-        if not base:
-            return _("L'adresse publique de votre instance n'est pas renseignée.")
-        host = base.split("//")[-1].split("/")[0].split(":")[0].lower()
-        if host in ("localhost", "127.0.0.1", "0.0.0.0") or host.endswith(".local"):
-            return _(
-                "Vous accédez à Odoo par « %s ». Mobupay ne pourra pas y livrer ses "
-                "confirmations de paiement, et vos commandes resteraient en attente. "
-                "C'est normal sur un poste de développement. Refaites cette "
-                "vérification en accédant à Odoo par l'adresse publique de votre "
-                "boutique, celle que vos clients utilisent.", base,
-            )
-        if not base.startswith("https://"):
-            return _(
-                "Vous accédez à Odoo par « %s », qui n'est pas en HTTPS. Mobupay n'y "
-                "livrera pas ses confirmations de paiement. Refaites cette "
-                "vérification en accédant à Odoo par son adresse HTTPS.", base,
-            )
-        return None
-
-    def _mobupay_refresh_secret(self, silent=True):
-        """Recupere le secret de signature avec la seule cle API.
-
-        L'appel sert deux choses d'un coup : il pose le secret, et il PROUVE que la
-        cle est valide.
-
-        En mode silencieux (enregistrement), un echec ne bloque JAMAIS : les valeurs
-        sont deja ecrites, et une API momentanement injoignable ne doit pas empecher
-        un marchand de configurer sa boutique. On journalise, et la prochaine
-        sauvegarde reessaiera.
-        """
-        for provider in self:
-            if provider.code != "mobupay":
-                continue
-            key = (provider.mobupay_api_key or "").strip()
-            if not key:
-                if not silent:
-                    raise UserError(_(
-                        "Aucune clé API renseignée : la boutique ne pourra pas encaisser."
-                    ))
-                continue
-            try:
-                body = mobupay_api.request(
-                    provider.mobupay_api_base, key, "GET", "/api/v1/webhooks/signing-secret"
-                )
-            except mobupay_api.MobupayError as exc:
-                _logger.warning("Mobupay : récupération du secret de signature en échec : %s", exc)
-                if not silent:
-                    raise UserError(_(
-                        "Mobupay n'a pas pu être contacté pour vérifier votre clé : %s",
-                        exc,
-                    ))
-                continue
-
-            secret = (body or {}).get("webhookSecret") or ""
-            if not secret:
-                _logger.warning("Mobupay : aucun secret de signature renvoyé.")
-                if not silent:
-                    raise UserError(_(
-                        "Aucun secret de signature n'a été renvoyé. Les paiements "
-                        "fonctionneront, mais les confirmations ne pourront pas être "
-                        "vérifiées."
-                    ))
-                continue
-
-            # `sudo` : le champ est reserve au groupe systeme, et cette ecriture est
-            # faite par le module lui-meme, pas par l'utilisateur.
-            provider.sudo().mobupay_webhook_secret = secret
+    # ── Appel API ───────────────────────────────────────────────────────────
 
     def _mobupay_request(self, method, endpoint, payload=None, idempotency_key=None):
-        """Appel API porte par ce fournisseur."""
         self.ensure_one()
         return mobupay_api.request(
             self.mobupay_api_base,

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        La carte bancaire, propre au fournisseur Mobupay (Odoo 20). `support_refund`
+        vaut `partial` : le bouton « Rembourser » exige `!= none` sur le fournisseur ET
+        sur le moyen de paiement, et l'API accepte plusieurs remboursements partiels
+        jusqu'au total (PLAN-960 lot R).
+    -->
+    <record id="payment_method_card" model="payment.method">
+        <field name="name">Carte bancaire</field>
+        <field name="code">card</field>
+        <field name="sequence">10</field>
+        <field name="provider_id" ref="mobupay_payment.payment_provider_mobupay"/>
+        <field name="image" type="bytes" file="payment/static/img/card.png"/>
+        <field name="support_tokenization">False</field>
+        <field name="support_refund">partial</field>
+    </record>
+</odoo>

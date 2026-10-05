@@ -7,7 +7,7 @@
     # d'une AUTRE serie. Un manifeste en « 17.0.1.0.0 » s'installe donc sur la 17 et
     # echoue sur la 18 avec « invalid manifest », sans autre explication.
     # Constate en installant reellement le module sur les deux, le 2026-08-25.
-    "version": "1.0.3",
+    "version": "1.2.0",
     "summary": "Paiement par carte via Mobupay (Nouvelle-Calédonie et Pacifique)",
     # Rendue en reStructuredText par Odoo : listes a puces avec ligne vide avant et
     # apres, et AUCUNE ligne indentee sous un paragraphe, sinon le rendu casse et la
@@ -26,9 +26,13 @@ récupéré automatiquement, et l'enregistrement vérifie la clé et vous dit da
 environnement vous êtes, test ou production.
 
 Le détail complet de la commande est transmis dès l'installation : articles, taxes par
-ligne, frais de port, remises, et coordonnées du client. Vos factures Mobupay détaillent
-donc chaque ligne et portent les mentions obligatoires, sans que vous ayez un seul champ
-à remplir.
+ligne, frais de port, remises, et coordonnées du client. Le client voit le récapitulatif
+de son panier sur la page de paiement.
+
+Vous choisissez qui établit les factures : Odoo, si vous facturez dans Odoo, ou
+Mobupay, si vous encaissez sans facturer dans Odoo. Jamais les deux pour une même vente.
+
+Remboursement depuis Odoo, en une ou plusieurs fois, jusqu'au montant payé.
 
 Mobupay est agent d'eZyness, établissement de monnaie électronique agréé par l'ACPR. Les
 fonds sont reversés en XPF sur un compte bancaire local.
@@ -62,6 +66,7 @@ Politique de confidentialité : https://mobupay.nc/privacy
         "views/payment_mobupay_templates.xml",
         "views/payment_provider_views.xml",
         "data/payment_provider_data.xml",
+        "data/payment_method_data.xml",
         "data/mobupay_cron.xml",
     ],
     # Image de couverture de la fiche Odoo Apps. La cle `images` est ce que la place
