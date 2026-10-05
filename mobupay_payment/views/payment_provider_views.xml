@@ -38,7 +38,22 @@
                     </div>
                     <field name="mobupay_send_order_details"/>
                     <field name="mobupay_send_customer_details"/>
-                    <field name="mobupay_invoicing"/>
+                    <field name="mobupay_store_id" placeholder="Laisser vide dans la plupart des cas"/>
+                </group>
+                <!--
+                    PLAN-960 lot 5 : QUI facture. Deux modes exclusifs, jamais deux
+                    factures pour une vente. En mode Mobupay, la nature de l'operation
+                    (mention obligatoire) et l'acces a l'activation du module.
+                -->
+                <group string="Facturation" invisible="code != 'mobupay'">
+                    <field name="mobupay_invoicing" widget="radio"/>
+                    <field name="mobupay_operation_type"
+                           invisible="mobupay_invoicing == 'no'"/>
+                    <button name="action_mobupay_open_billing_activation"
+                            type="object"
+                            string="Activer la facturation Mobupay"
+                            class="btn-link"
+                            invisible="mobupay_invoicing == 'no' or not mobupay_api_key"/>
                 </group>
             </group>
         </field>

@@ -7,7 +7,7 @@ ne transitent jamais par votre serveur.**
 Mobupay est agent d'eZyness, établissement de monnaie électronique agréé par l'ACPR. Les
 fonds sont reversés en XPF sur un compte bancaire local.
 
-Compatible **Odoo 17.0 et 18.0**.
+Compatible **Odoo 17.0, 18.0, 19.0 et 20.0** : une branche de ce dépôt par série.
 
 ---
 
@@ -60,10 +60,25 @@ et vous confirme dans quel environnement vous êtes, test ou production. Le bout
 | Secret de signature | En lecture seule, rempli automatiquement |
 | Détail de la commande | Oui par défaut. Articles, taxes par ligne, frais de port, remises |
 | Coordonnées du client | Oui par défaut. Nom, adresse de facturation, téléphone, adresse de livraison |
-| Facture Mobupay | Non par défaut |
+| Qui établit les factures | Odoo par défaut. Voir ci-dessous |
 
-Le module s'installe **désactivé** : un moyen de paiement ne doit jamais arriver prêt à
-encaisser. Passez en « Mode test », encaissez un paiement d'essai, puis « Activé ».
+Le module s'installe **désactivé** (non publié en Odoo 20) : un moyen de paiement ne doit
+jamais arriver prêt à encaisser. Passez en mode test, encaissez un paiement d'essai, puis
+passez en production.
+
+### Qui établit les factures
+
+Une vente ne porte jamais deux factures. Choisissez :
+
+- **Odoo** (par défaut) : vous facturez dans Odoo, Mobupay n'établit aucune facture.
+- **Mobupay** : vous encaissez depuis Odoo sans y facturer. Mobupay établit la facture
+  de chaque paiement, et peut l'envoyer au client. Le module Facturation doit être
+  activé dans votre espace marchand Mobupay : le bouton « Activer la facturation
+  Mobupay » y mène, et « Vérifier la connexion » vous dit s'il est prêt.
+
+Si la facturation automatique d'Odoo est active, Mobupay ne peut pas facturer à sa place :
+le module vous le dit à l'enregistrement. Le paiement d'une facture Odoo n'en produit
+jamais une seconde.
 
 **Votre instance doit être joignable depuis internet, en HTTPS.** Mobupay y livre ses
 confirmations de paiement. Le bouton « Vérifier la connexion » vous prévient si votre
@@ -98,10 +113,19 @@ Les deux options de transmission se coupent depuis la fiche du fournisseur.
 Le **webhook signé** de Mobupay est la source de vérité : votre commande se confirme
 dès que le paiement est encaissé, sans que le client ait à revenir sur votre site.
 
-Si ce webhook n'arrive pas — pare-feu, coupure réseau, instance arrêtée au mauvais
-moment — **une reprise prend le relais** : la page de statut interroge Mobupay pendant
-que le client attend, et une tâche planifiée rattrape toutes les dix minutes ce que
-personne n'a vu. **Un paiement encaissé ne laisse jamais une commande en attente.**
+Si ce webhook n'arrive pas (pare-feu, coupure réseau, instance arrêtée au mauvais
+moment), **une reprise prend le relais** : au retour du client, le module interroge
+Mobupay avant d'afficher la page de statut, et une tâche planifiée rattrape toutes les
+dix minutes ce que personne n'a vu. **Un paiement encaissé ne laisse jamais une commande
+en attente.**
+
+---
+
+## Remboursement
+
+Depuis le paiement dans Odoo, bouton « Rembourser ». En une ou plusieurs fois, jusqu'au
+montant payé : un article, puis un autre. Un remboursement fait depuis votre espace
+marchand Mobupay apparaît aussi dans Odoo.
 
 ---
 
