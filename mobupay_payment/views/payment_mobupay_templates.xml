@@ -7,6 +7,12 @@
     -->
     <template id="redirect_form">
         <form t-att-action="api_url" method="get">
+            <!-- En GET, le navigateur jette la partie `?...` de l'action et la remplace
+                 par les champs : les parametres de l'adresse (dont `session`) doivent
+                 donc etre des champs, sinon la page de paiement se dit expiree. -->
+            <t t-foreach="url_params or []" t-as="param">
+                <input type="hidden" t-att-name="param[0]" t-att-value="param[1]"/>
+            </t>
             <!-- Odoo soumet ce formulaire tout seul ; le bouton n'est la que pour un
                  navigateur sans JavaScript. -->
             <input type="submit" class="btn btn-primary" value="Payer avec Mobupay"/>

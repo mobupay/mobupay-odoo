@@ -17,7 +17,7 @@ Deux conventions valent pour les quatre series :
 """
 
 import logging
-from urllib.parse import quote
+from urllib.parse import parse_qsl, quote, urlsplit
 
 from odoo import _
 from odoo.exceptions import UserError, ValidationError
@@ -315,8 +315,12 @@ def session_payload(tx, champs, odoo_auto_invoice):
     payload = {
         "order": order_payload,
         # PLAN-960 lot 0.3 — retour par NOTRE route : elle relit le paiement avant
-        # d'afficher la page de statut, sur les quatre series.
-        "redirectUrl": "%s/payment/mobupay/return?reference=%s" % (base_url, quote(tx.reference)),
+        # d'afficher la page de statut, sur les quatre series. Le parametre ne
+        # s'appelle PAS `reference` : Mobupay ajoute au retour `status`, `paymentId`
+        # et `reference` (SA reference de recu, `MBP-...`), en REMPLACANT un parametre
+        # du meme nom. La transaction n'etait alors jamais retrouvee, et le client
+        # attendait la tache des dix minutes (constate en recette le 2026-10-05).
+        "redirectUrl": "%s/payment/mobupay/return?odoo_reference=%s" % (base_url, quote(tx.reference)),
         "notificationUrl": "%s/payment/mobupay/webhook" % base_url,
         "externalId": tx.reference,
     }
@@ -339,7 +343,7 @@ def create_session(tx, payload):
     version : **un paiement ne doit JAMAIS echouer pour un motif de facturation.**
     """
     provider = tx.provider_id
-    idempotency_key = "odoo-%s" % tx.reference
+    idempotency_key = "odoo-%s-%s" % (identifiant_de_base(tx.env), tx.reference)
     try:
         return provider._mobupay_request("POST", "/api/v1/payments/sessions", payload, idempotency_key)
     except mobupay_api.MobupayError as exc:
@@ -365,6 +369,23 @@ def create_session(tx, payload):
         return session
 
 
+def identifiant_de_base(env):
+    """Identifiant unique de la base Odoo, pour la cle d'idempotence de la session.
+
+    La reference d'une transaction n'est unique que DANS sa base : toute base neuve
+    repart de `S00001`. Or Mobupay garde la cle (marchand, cle) SANS limite de duree.
+    Avec `odoo-S00001` seul, une seconde base branchee sur le meme compte Mobupay (une
+    autre boutique, une base de test, une reinstallation) recevait la session, voire
+    le paiement DEJA REGLE, de la premiere : la commande se confirmait sans que son
+    client ait paye. Constate en recette le 2026-10-05, entre deux instances.
+    `database.uuid` est pose par Odoo a la creation de la base, dans les quatre series.
+    """
+    parametres = env["ir.config_parameter"].sudo()
+    # Odoo 20 a remplace `get_param` par des lectures typees.
+    lire = getattr(parametres, "get_str", None) or parametres.get_param
+    return lire("database.uuid") or env.cr.dbname
+
+
 def rendering_values(tx, champs, odoo_auto_invoice):
     """`_get_specific_rendering_values` des quatre series : session, puis URL."""
     session = create_session(tx, session_payload(tx, champs, odoo_auto_invoice))
@@ -375,7 +396,15 @@ def rendering_values(tx, champs, odoo_auto_invoice):
     # webhook le perdrait si le client ferme son navigateur.
     if session.get("paymentId"):
         _ecrire(tx, {"provider_reference": session["paymentId"]})
-    return {"api_url": checkout_url}
+    # Le formulaire de redirection est en GET, et un navigateur REMPLACE la partie
+    # `?...` de son adresse par ses champs : `/checkout?session=ses_...` arrivait sur
+    # `/checkout`, que la page hebergee renvoie sur « Lien expire ». Les parametres de
+    # l'adresse partent donc en champs caches (meme forme que les modules de paiement
+    # d'Odoo eux-memes). Constate en recette le 2026-10-05.
+    return {
+        "api_url": checkout_url,
+        "url_params": parse_qsl(urlsplit(checkout_url).query, keep_blank_values=True),
+    }
 
 
 # ── Transaction : appliquer ce que Mobupay annonce ──────────────────────────
